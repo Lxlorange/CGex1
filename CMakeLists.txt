@@ -14,6 +14,9 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
-add_executable(${PROJECT_NAME} main.cpp)
+set(GLAD_SOURCE "ThirdParty/glad/src/glad.c")
+include_directories(ThirdParty/glad/include)
+
+add_executable(${PROJECT_NAME} main.cpp ${GLAD_SOURCE})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw opengl32)
