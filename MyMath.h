@@ -1,6 +1,7 @@
 #pragma once
 #include <cstring>
 #include <cmath>
+
 struct Mat4 {
     float m[16];
 
@@ -47,6 +48,28 @@ struct Mat4 {
         mat.at(0, 0) = sx;
         mat.at(1, 1) = sy;
         mat.at(2, 2) = sz;
+        return mat;
+    }
+
+    static Mat4 rotateX(float angleRadians) {
+        Mat4 mat;
+        float c = cos(angleRadians);
+        float s = sin(angleRadians);
+        mat.at(1, 1) = c;
+        mat.at(1, 2) = -s;
+        mat.at(2, 1) = s;
+        mat.at(2, 2) = c;
+        return mat;
+    }
+
+    static Mat4 rotateY(float angleRadians) {
+        Mat4 mat;
+        float c = cos(angleRadians);
+        float s = sin(angleRadians);
+        mat.at(0, 0) = c;
+        mat.at(0, 2) = s;
+        mat.at(2, 0) = -s;
+        mat.at(2, 2) = c;
         return mat;
     }
 

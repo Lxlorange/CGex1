@@ -6,13 +6,15 @@
 
 const char* vertexShaderSource = "#version 330 core\n"
                                  "layout (location = 0) in vec3 aPos;\n"
+                                 "out vec3 vertexColor;\n"
                                  "uniform mat4 transform;\n"
-                                 "void main()\n"
-                                 "{gl_Position = transform * vec4(aPos.x, aPos.y, aPos.z, 1.0);}\0";
+                                 "void main(){\n"
+                                 "  gl_Position = transform * vec4(aPos, 1.0);\n"
+                                 "  vertexColor = aPos;}\0";
 const char* fragmentShaderSource ="#version 330 core\n"
+                                  "in vec3 vertexColor;\n"
                                   "out vec4 FragColor;\n"
-                                  "void main(){FragColor = vec4(1.0f,0.5f,0.2f,1.0f);}\0";
-
+                                  "void main(){FragColor = vec4(vertexColor + vec3(0.5), 1.0f);}\0";
 
 int main() {
     glfwInit();
@@ -49,9 +51,47 @@ int main() {
     glDeleteShader(fragmentShader);
 
     float vertices[] = {
-            -0.5f, -0.5f, 0.0f,
-            0.5f, -0.5f, 0.0f,
-            0.0f,  0.5f, 0.0f
+            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+            0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+            0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+            0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+            0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
 
     unsigned int VBO, VAO;
@@ -62,27 +102,29 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER,VBO);
     glBufferData(GL_ARRAY_BUFFER,sizeof(vertices),vertices,GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof (float ),(void *)0);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,5*sizeof (float ),(void *)0);
     glEnableVertexAttribArray(0);
+
+    glEnable(GL_DEPTH_TEST);
 
     float timeValue = 0.0f;
     while(!glfwWindowShouldClose(window))
     {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shaderProgram);
         timeValue = glfwGetTime();
-        Mat4 S = Mat4::scale(0.5f, 0.5f, 1.0f);
-        Mat4 R = Mat4::rotateZ(timeValue);
-        Mat4 T = Mat4::translate(0.5f, 0.5f, 0.0f);
 
-        Mat4 myTransform = T * R * S;
-        int transformLoc = glGetUniformLocation(shaderProgram,"transform");
-        glUniformMatrix4fv(transformLoc,1,GL_FALSE,myTransform.m);
+        Mat4 rotX = Mat4::rotateX(timeValue * 0.5f);
+        Mat4 rotY = Mat4::rotateY(timeValue * 0.7f);
+        Mat4 myTransform = rotX * rotY;
+
+        int transformLoc = glGetUniformLocation(shaderProgram, "transform");
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, myTransform.m);
 
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES,0,3);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
