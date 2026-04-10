@@ -1,37 +1,99 @@
-# CG实验一
+# CG 实验一（二维/三维变换、相机与投影）
 
-**@Environment**: Windows / CLion / CMake / MinGW / Legacy OpenGL
+## 实验目标覆盖
 
-## 项目简介
+项目基于现代 OpenGL（3.3 Core）实现：
 
-本项目是《计算机图形学》第一次实验的代码实现，使用现代 OpenGL (Core Profile) 编写。
+1. 二维图形绘制
+2. 二维变换（缩放、反射、切变、旋转、平移）
+3. 二维组合变换
+4. 三维图形绘制
+5. 三维变换（缩放、平移、绕 x/y/z 轴旋转）
+6. 三维组合变换
+7. 键盘交互、相机移动、透视/正交投影切换
 
-`MyMath.h` 简单实现了矩阵乘法操作，`main.cpp` 测试了二维变换的成功。
+## 工程结构
 
-## 编译与运行
+```text
+CGex1/
+  CMakeLists.txt
+  src/
+    CMakeLists.txt
+    app/       # App 框架与程序入口
+    core/      # Shader 封装
+    input/     # GLFW 回调封装
+    math/      # 列主序 MyMath
+    scene/     # Scene / Demo2D / Demo3D
+  shaders/     # 2D/3D GLSL
+  Thirdparty/glad/
+  docs/
+```
 
-本项目尝试使用 CMake 的 `FetchContent` 来便捷配置。 Windows用户可直接按照下述步骤执行，其它OS的用户请自行下载配置项目需要的第三方依赖。
+## 构建环境
 
-1.  克隆或下载本代码仓库。
-2.  使用 IDE （推荐Clion）打开项目根目录。
-3.  等待 CMake 自动从 GitHub 拉取 `GLFW` 源码（首次配置需保持网络畅通）。
-4.  CMake 刷新完成后，直接运行 Target（CG_ex1）。
-5.  *(注：本项目已配置链接 Windows 原生 `opengl32` 图形接口库，无需额外下载配置 GLAD)*。
+- 操作系统：Windows
+- CMake：>= 3.20
+- 编译器：MSVC 或 MinGW（CMake 自动适配生成器）
+- 依赖：
+  - GLFW（通过 `FetchContent` 自动拉取）
+  - GLAD（仓库内 `Thirdparty/glad`）
+  - `opengl32`
 
-## 第三方依赖
+## 构建与运行
 
-本项目需要依赖以下第三方图形库。
+在项目根目录执行：
 
-### 1. GLFW (窗口与输入管理)
-* **作用**：负责与操作系统交互，创建 OpenGL 上下文窗口，并处理键盘/鼠标输入。
-* **下载地址**：[GLFW 官网下载页](https://www.glfw.org/download.html)
-* **版本选择**：**Pre-compiled binaries** (预编译版本)。
-  * *注意：本项目的 CMake 默认配置为 `lib-mingw-w64`。如果你使用的是 Visual Studio，请修改 `CMakeLists.txt` 中的库路径为对应的 `lib-vc202X`。*
+```powershell
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Release
+```
 
-### 2. GLAD (OpenGL 函数指针加载器)
-* **作用**：在运行时获取显卡驱动中 OpenGL 具体实现的函数地址。
-* **下载地址**：前往 [GLAD 在线生成器](https://glad.dav1d.de/)，通过下列配置生成压缩包并下载：
-  * **Language**: C/C++
-  * **Specification**: OpenGL
-  * **API gl**: Version 3.3
-  * **Profile**: Core
+命令行帮助与自动验证：
+
+```powershell
+./CG_ex1.exe --help
+./CG_ex1.exe --validate
+```
+
+`--validate` 会自动执行清单 1-7 的关键操作并把截图写入 `docs/screenshots/`。
+
+## 键位说明
+
+全局（App）：
+
+- `1`：切换到 Demo2D
+- `2`：切换到 Demo3D
+- `F`：线框模式开关
+- `Esc`：退出程序
+
+Demo2D：
+
+- `W/A/S/D`：平移
+- `Q/E`：旋转
+- `Z/X`：等比缩放
+- `H/J`：X 方向切变增减
+- `N/M`：Y 方向切变增减
+- `Y`：X 轴反射开关
+- `U`：Y 轴反射开关
+- `T`：组合顺序切换（`T*R*...` 与 `R*T*...`）
+- `R`：重置变换
+
+Demo3D：
+
+- `W/A/S/D`：相机前后左右移动
+- `Q/E`：相机上下移动
+- `↑/↓/←/→`：模型绕 X/Y 旋转
+- `Z/X`：模型绕 Z 旋转
+- `+/-`：模型缩放
+- `I/J/K/L/O/U`：模型平移
+- `P`：透视/正交投影切换
+- `T`：组合顺序切换（`T*R*S` 与 `R*T*S`）
+- `R`：重置模型与相机
+
+## 常见问题
+
+- 只能按 `1/2` 切场景：
+  - 先点击渲染窗口，让窗口获得焦点。
+  - 切到英文输入法再试（部分中文输入法会拦截字母键输入）。
