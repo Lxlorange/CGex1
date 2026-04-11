@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(CG_ex1)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -14,9 +15,4 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 
-set(GLAD_SOURCE "ThirdParty/glad/src/glad.c")
-include_directories(ThirdParty/glad/include)
-
-add_executable(${PROJECT_NAME} main.cpp ${GLAD_SOURCE})
-
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw opengl32)
+add_subdirectory(src)
