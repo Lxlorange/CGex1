@@ -1,0 +1,4 @@
+#pragma once
+
+/** Absolute project root (repo top), set at configure time by CMake. */
+#define PROJECT_SOURCE_DIR_PATH "@CMAKE_SOURCE_DIR@"

@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
 project(CG_ex1)
 
+# Emit compile_commands.json so clangd/Cursor can resolve Thirdparty (e.g. glad) includes.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

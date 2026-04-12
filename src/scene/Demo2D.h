@@ -13,8 +13,10 @@ public:
     void onEnter() override;
     void render(int width, int height) override;
     void onKey(int key, int action) override;
+    void drawUi() override;
 
     bool isAltOrder() const;
+    void resetParameters();
 
 private:
     Shader shader_;
