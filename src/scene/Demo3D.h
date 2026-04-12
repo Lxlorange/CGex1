@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "core/Shader.h"
 #include "scene/Scene.h"
@@ -24,6 +25,7 @@ private:
     Shader shader_;
     unsigned int vao_;
     unsigned int vbo_;
+    unsigned int ebo_;
 
     Vec3 cameraEye_;
     Vec3 cameraCenter_;
@@ -41,6 +43,9 @@ private:
 
     void resetTransform();
     Mat4 buildModel() const;
+
+    void uploadMeshToGpu(const std::vector<float>& vertices, const std::vector<unsigned int>& indices);
+    size_t indexCount_{0};
 };
 
 inline bool Demo3D::isPerspective() const {

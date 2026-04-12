@@ -17,6 +17,7 @@ compile_commands.json
 
 *.exe
 *.obj
+!assets/models/*.obj
 *.o
 *.pdb
 *.ilk
