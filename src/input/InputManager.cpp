@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
 #include <GLFW/glfw3.h>
 
 InputManager::InputManager()
@@ -21,6 +23,8 @@ void InputManager::attach(GLFWwindow* window) {
     glfwSetWindowUserPointer(window_, this);
     glfwSetKeyCallback(window_, InputManager::keyCallback);
     glfwSetFramebufferSizeCallback(window_, InputManager::framebufferSizeCallback);
+    glfwSetMouseButtonCallback(window_, InputManager::mouseButtonCallback);
+    glfwSetScrollCallback(window_, InputManager::scrollCallback);
 }
 
 void InputManager::setKeyHandler(KeyHandler handler) {
@@ -32,8 +36,12 @@ void InputManager::setResizeHandler(ResizeHandler handler) {
 }
 
 void InputManager::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    (void)scancode;
-    (void)mods;
+    if (ImGui::GetCurrentContext() != nullptr) {
+        ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
+        if (ImGui::GetIO().WantCaptureKeyboard) {
+            return;
+        }
+    }
 
     InputManager* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
     if (input == nullptr || !input->keyHandler_) {
@@ -41,6 +49,18 @@ void InputManager::keyCallback(GLFWwindow* window, int key, int scancode, int ac
     }
 
     input->keyHandler_(key, action);
+}
+
+void InputManager::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    if (ImGui::GetCurrentContext() != nullptr) {
+        ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+    }
+}
+
+void InputManager::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+    if (ImGui::GetCurrentContext() != nullptr) {
+        ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+    }
 }
 
 void InputManager::framebufferSizeCallback(GLFWwindow* window, int width, int height) {

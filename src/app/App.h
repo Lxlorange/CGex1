@@ -16,7 +16,8 @@ class Demo3D;
 
 class App {
 public:
-    explicit App(GLFWwindow* window);
+    /// If startWithDemo3D is true, the first scene is Demo3D; otherwise Demo2D.
+    explicit App(GLFWwindow* window, bool startWithDemo3D = false);
     ~App();
 
     void run();
@@ -33,6 +34,8 @@ private:
     int framebufferWidth_;
     int framebufferHeight_;
     bool wireframe_;
+    /// When false, ImGui is not drawn (e.g. during --validate screenshots).
+    bool uiVisible_;
 
     void setupInput();
     void switchToDemo2D();
