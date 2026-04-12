@@ -1,4 +1,8 @@
+#include <glad/glad.h>
+
 #include "app/App.h"
+
+#include "BuildConfig.h"
 
 #include <filesystem>
 #include <fstream>
@@ -7,12 +11,14 @@
 #include <stdexcept>
 #include <vector>
 
-#include <glad/glad.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 #include "scene/Demo2D.h"
 #include "scene/Demo3D.h"
 
-App::App(GLFWwindow* window)
+App::App(GLFWwindow* window, bool startWithDemo3D)
     : window_(window),
       inputManager_(window),
       demo2D_(std::make_unique<Demo2D>(PROJECT_SOURCE_DIR_PATH)),
@@ -20,7 +26,8 @@ App::App(GLFWwindow* window)
       activeScene_(nullptr),
       framebufferWidth_(800),
       framebufferHeight_(600),
-      wireframe_(false) {
+      wireframe_(false),
+      uiVisible_(true) {
     if (window_ == nullptr) {
         throw std::runtime_error("App requires a valid GLFW window.");
     }
@@ -31,7 +38,11 @@ App::App(GLFWwindow* window)
     glfwFocusWindow(window_);
 
     setupInput();
-    switchToDemo2D();
+    if (startWithDemo3D) {
+        switchToDemo3D();
+    } else {
+        switchToDemo2D();
+    }
 }
 
 App::~App() = default;
@@ -53,6 +64,9 @@ void App::run() {
 }
 
 bool App::runChecklistValidation(const std::string& screenshotDir) {
+    const bool prevUi = uiVisible_;
+    uiVisible_ = false;
+
     namespace fs = std::filesystem;
     fs::create_directories(screenshotDir);
 
@@ -116,6 +130,7 @@ bool App::runChecklistValidation(const std::string& screenshotDir) {
     pressKeyOnce(GLFW_KEY_P);
     shoot("checklist7_camera_projection.ppm");
 
+    uiVisible_ = prevUi;
     return true;
 }
 
@@ -135,7 +150,6 @@ void App::switchToDemo2D() {
     }
     activeScene_ = demo2D_.get();
     activeScene_->onEnter();
-    updateWindowTitle();
 }
 
 void App::switchToDemo3D() {
@@ -144,7 +158,6 @@ void App::switchToDemo3D() {
     }
     activeScene_ = demo3D_.get();
     activeScene_->onEnter();
-    updateWindowTitle();
 }
 
 void App::onKey(int key, int action) {
@@ -166,13 +179,11 @@ void App::onKey(int key, int action) {
     if (key == GLFW_KEY_F && action == GLFW_PRESS) {
         wireframe_ = !wireframe_;
         glPolygonMode(GL_FRONT_AND_BACK, wireframe_ ? GL_LINE : GL_FILL);
-        updateWindowTitle();
         return;
     }
 
     if (activeScene_ != nullptr && action == GLFW_PRESS) {
         activeScene_->onKey(key, action);
-        updateWindowTitle();
     }
 }
 
@@ -187,6 +198,11 @@ void App::pollSceneKeys() {
         return;
     }
 
+    const ImGuiIO& io = ImGui::GetIO();
+    if (ImGui::GetCurrentContext() != nullptr && (io.WantCaptureKeyboard || io.WantCaptureMouse)) {
+        return;
+    }
+
     const int keys[] = {
         GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D,
         GLFW_KEY_Q, GLFW_KEY_E,
@@ -197,16 +213,10 @@ void App::pollSceneKeys() {
         GLFW_KEY_EQUAL, GLFW_KEY_MINUS, GLFW_KEY_KP_ADD, GLFW_KEY_KP_SUBTRACT
     };
 
-    bool changed = false;
     for (int key : keys) {
         if (glfwGetKey(window_, key) == GLFW_PRESS) {
             activeScene_->onKey(key, GLFW_REPEAT);
-            changed = true;
         }
-    }
-
-    if (changed) {
-        updateWindowTitle();
     }
 }
 
@@ -251,6 +261,21 @@ void App::renderOneFrame(float deltaTime) {
         activeScene_->update(deltaTime);
         activeScene_->render(framebufferWidth_, framebufferHeight_);
     }
+
+    if (uiVisible_ && ImGui::GetCurrentContext() != nullptr) {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        if (activeScene_ != nullptr) {
+            activeScene_->drawUi();
+        }
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+
+    updateWindowTitle();
 }
 
 void App::captureFramePpm(const std::string& imagePath) const {

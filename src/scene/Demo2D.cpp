@@ -8,6 +8,8 @@
 
 #include <iostream>
 
+#include <imgui.h>
+
 namespace {
 float clampScale(float v) {
     if (v < 0.1f) {
@@ -82,14 +84,13 @@ void Demo2D::onEnter() {
 }
 
 void Demo2D::render(int width, int height) {
-    shader_.use();
-    shader_.setFloat("u_Time", static_cast<float>(glfwGetTime()));
-
     const float aspect = (height == 0) ? 1.0f : static_cast<float>(width) / static_cast<float>(height);
     const Mat4 model = buildModel();
     const Mat4 view = Mat4::identity();
     const Mat4 proj = Mat4::ortho(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
 
+    shader_.use();
+    shader_.setFloat("u_Time", static_cast<float>(glfwGetTime()));
     shader_.setMat4("u_Model", model);
     shader_.setMat4("u_View", view);
     shader_.setMat4("u_Proj", proj);
@@ -184,4 +185,77 @@ Mat4 Demo2D::buildModel() const {
         return t * r * sh * reflect * s;
     }
     return r * t * sh * reflect * s;
+}
+
+void Demo2D::resetParameters() {
+    resetTransform();
+}
+
+void Demo2D::drawUi() {
+    ImGuiIO& io = ImGui::GetIO();
+
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 340.0f, 28.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowBgAlpha(0.92f);
+    ImGui::Begin(
+        "Coordinates",
+        nullptr,
+        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+    ImGui::TextUnformatted("2D scene: no 3D camera / \xe6\x97\xa0\xe4\xb8\x89\xe7\xbb\xb4\xe6\x91\x84\xe5\x83\x8f\xe6\x9c\xba");
+    ImGui::BulletText("View matrix: identity / \xe8\xa7\x86\xe5\x9b\xbe\xe4\xb8\xba\xe5\x8d\x95\xe4\xbd\x8d\xe9\x98\xb5");
+    ImGui::BulletText("Projection: ortho (NDC plane) / \xe6\xad\xa3\xe4\xba\xa4\xe6\x8a\x95\xe5\xbd\xb1");
+    ImGui::Separator();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.92f, 0.75f, 1.0f));
+    ImGui::TextUnformatted("Object / \xe7\x89\xa9\xe4\xbd\x93");
+    ImGui::PopStyleColor();
+    ImGui::BulletText("Translation (tx, ty): %.4f , %.4f", tx_, ty_);
+    ImGui::BulletText("Rotation Z (deg):     %.2f", rotRad_ * 180.0f / 3.14159265f);
+    ImGui::BulletText("Scale (sx, sy):       %.4f , %.4f", sx_, sy_);
+    ImGui::BulletText("Shear (shx, shy):      %.4f , %.4f", shx_, shy_);
+    ImGui::Separator();
+    ImGui::TextUnformatted("Flags");
+    ImGui::BulletText("Reflect X: %s  Reflect Y: %s", reflectX_ ? "on" : "off", reflectY_ ? "on" : "off");
+    ImGui::BulletText("Combine alt order: %s", altOrder_ ? "R*T" : "T*R");
+    ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(16.0f, 28.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(340.0f, 560.0f), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Demo2D / Properties", nullptr)) {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::TreeNodeEx("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::SliderFloat("Position X", &tx_, -0.65f, 0.65f, "%.3f");
+        ImGui::SliderFloat("Position Y", &ty_, -0.65f, 0.65f, "%.3f");
+        float rotDeg = rotRad_ * 180.0f / 3.14159265f;
+        if (ImGui::SliderFloat("Rotation Z (deg)", &rotDeg, -180.0f, 180.0f, "%.1f")) {
+            rotRad_ = degToRad(rotDeg);
+        }
+        ImGui::SliderFloat("Scale X", &sx_, 0.1f, 5.0f, "%.3f");
+        ImGui::SliderFloat("Scale Y", &sy_, 0.1f, 5.0f, "%.3f");
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("Shear", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::SliderFloat("Shear shx (x' += shx*y)", &shx_, -0.8f, 0.8f, "%.3f");
+        ImGui::SliderFloat("Shear shy (y' += shy*x)", &shy_, -0.8f, 0.8f, "%.3f");
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("Reflect & combine", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Reflect across X axis", &reflectX_);
+        ImGui::Checkbox("Reflect across Y axis", &reflectY_);
+        ImGui::Checkbox("Alt order (R*T vs T*R)", &altOrder_);
+        ImGui::TreePop();
+    }
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Live numbers: see \"Coordinates / \xe5\x9d\x90\xe6\xa0\x87\xe8\xaf\xbb\xe6\x95\xb0\"");
+
+    if (ImGui::Button("Reset (same as R key)")) {
+        resetParameters();
+    }
+
+    ImGui::End();
 }

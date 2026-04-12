@@ -8,6 +8,8 @@
 
 #include <iostream>
 
+#include <imgui.h>
+
 namespace {
 float clampScale(float v) {
     if (v < 0.2f) {
@@ -40,8 +42,9 @@ Demo3D::Demo3D(const std::string& projectRoot)
       posX_(0.0f),
       posY_(0.0f),
       posZ_(0.0f),
-      rotX_(0.0f),
-      rotY_(0.0f),
+      // 初始略转一点，否则相机在 +Z 轴正视时只能看到朝前的一个面，会像 2D 方块
+      rotX_(degToRad(22.0f)),
+      rotY_(degToRad(-32.0f)),
       rotZ_(0.0f),
       scale_(1.0f),
       perspective_(true),
@@ -118,9 +121,6 @@ void Demo3D::onEnter() {
 }
 
 void Demo3D::render(int width, int height) {
-    shader_.use();
-    shader_.setFloat("u_Time", static_cast<float>(glfwGetTime()));
-
     const float aspect = (height == 0) ? 1.0f : static_cast<float>(width) / static_cast<float>(height);
     const Mat4 model = buildModel();
     const Mat4 view = Mat4::lookAt(cameraEye_, cameraCenter_, cameraUp_);
@@ -132,6 +132,8 @@ void Demo3D::render(int width, int height) {
         proj = Mat4::ortho(-2.0f * aspect, 2.0f * aspect, -2.0f, 2.0f, 0.1f, 100.0f);
     }
 
+    shader_.use();
+    shader_.setFloat("u_Time", static_cast<float>(glfwGetTime()));
     shader_.setMat4("u_Model", model);
     shader_.setMat4("u_View", view);
     shader_.setMat4("u_Proj", proj);
@@ -239,4 +241,131 @@ Mat4 Demo3D::buildModel() const {
         return t * r * s;
     }
     return r * t * s;
+}
+
+void Demo3D::resetParameters() {
+    resetTransform();
+}
+
+void Demo3D::drawUi() {
+    ImGuiIO& io = ImGui::GetIO();
+
+    // 1. 坐标与状态只读信息板 (保持你原来的设计，这个独立窗口很棒)
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 340.0f, 28.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowBgAlpha(0.92f);
+    ImGui::Begin(
+        "Coordinates / 坐标读数",
+        nullptr,
+        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.92f, 0.95f, 1.0f, 1.0f));
+    ImGui::TextUnformatted("Camera / 摄像机");
+    ImGui::PopStyleColor();
+    ImGui::BulletText("Eye (x, y, z):  %.4f   %.4f   %.4f", cameraEye_.x, cameraEye_.y, cameraEye_.z);
+    ImGui::BulletText("Look-at center: %.4f   %.4f   %.4f", cameraCenter_.x, cameraCenter_.y, cameraCenter_.z);
+    ImGui::BulletText("Up:             %.4f   %.4f   %.4f", cameraUp_.x, cameraUp_.y, cameraUp_.z);
+    ImGui::Separator();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.92f, 0.75f, 1.0f));
+    ImGui::TextUnformatted("Object / 物体 (模型)");
+    ImGui::PopStyleColor();
+    ImGui::BulletText("Position (world): %.4f   %.4f   %.4f", posX_, posY_, posZ_);
+    ImGui::BulletText("Rotation (deg):   %.2f   %.2f   %.2f",
+                      rotX_ * 180.0f / 3.14159265f,
+                      rotY_ * 180.0f / 3.14159265f,
+                      rotZ_ * 180.0f / 3.14159265f);
+    ImGui::BulletText("Uniform scale:      %.4f", scale_);
+    ImGui::Separator();
+    ImGui::TextUnformatted("Projection / 投影");
+    ImGui::BulletText("%s", perspective_ ? "Perspective / 透视" : "Orthographic / 正交");
+    ImGui::End();
+
+    // 2. 主控面板 (科技仪表盘风格)
+    ImGui::SetNextWindowPos(ImVec2(16.0f, 28.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(380.0f, 680.0f), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("SYSTEM CONTROL // Demo3D", nullptr)) {
+        ImGui::End();
+        return;
+    }
+
+    constexpr ImGuiSliderFlags kSlide = ImGuiSliderFlags_AlwaysClamp;
+
+    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
+
+    if (ImGui::TreeNodeEx(">> CAMERA OPTICS", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextDisabled("POSITION [XYZ]");
+        ImGui::SliderFloat("Eye X", &cameraEye_.x, -3.5f, 3.5f, "%.2f", kSlide);
+        ImGui::SliderFloat("Eye Y", &cameraEye_.y, -2.5f, 2.5f, "%.2f", kSlide);
+        ImGui::SliderFloat("Eye Z", &cameraEye_.z, 1.2f, 8.0f, "%.2f", kSlide);
+        ImGui::Spacing();
+        ImGui::TextDisabled("TARGET: (%.2f, %.2f, %.2f)", cameraCenter_.x, cameraCenter_.y, cameraCenter_.z);
+        ImGui::TextDisabled("UP VEC: (%.2f, %.2f, %.2f)", cameraUp_.x, cameraUp_.y, cameraUp_.z);
+        ImGui::TreePop();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (ImGui::TreeNodeEx(">> MODEL KINEMATICS", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextDisabled("TRANSLATION (World Space)");
+        ImGui::SliderFloat("Pos X", &posX_, -1.2f, 1.2f, "%.3f", kSlide);
+        ImGui::SliderFloat("Pos Y", &posY_, -1.2f, 1.2f, "%.3f", kSlide);
+        ImGui::SliderFloat("Pos Z", &posZ_, -1.2f, 1.2f, "%.3f", kSlide);
+        ImGui::Spacing();
+
+        ImGui::TextDisabled("EULER ROTATION");
+        ImGui::SliderAngle("Rot X", &rotX_, -180.0f, 180.0f, "%.1f deg", kSlide);
+        ImGui::SliderAngle("Rot Y", &rotY_, -180.0f, 180.0f, "%.1f deg", kSlide);
+        ImGui::SliderAngle("Rot Z", &rotZ_, -180.0f, 180.0f, "%.1f deg", kSlide);
+        ImGui::Spacing();
+
+        ImGui::TextDisabled("SCALE MODIFIER");
+        ImGui::SliderFloat("Uniform", &scale_, 0.2f, 4.0f, "%.3f", kSlide);
+        ImGui::TreePop();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (ImGui::TreeNodeEx(">> RENDER PIPELINE", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextUnformatted("PROJECTION MATRIX");
+        int projMode = perspective_ ? 0 : 1;
+        if (ImGui::RadioButton("Perspective", &projMode, 0)) {
+            perspective_ = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Orthographic", &projMode, 1)) {
+            perspective_ = false;
+        }
+
+        ImGui::Spacing();
+
+        ImGui::TextUnformatted("TRANSFORM ORDER");
+        int orderMode = altOrder_ ? 1 : 0;
+        if (ImGui::RadioButton("T * R * S (Standard)", &orderMode, 0)) {
+            altOrder_ = false;
+        }
+        if (ImGui::RadioButton("R * T * S (Alt)", &orderMode, 1)) {
+            altOrder_ = true;
+        }
+
+        ImGui::TreePop();
+    }
+
+    ImGui::PopItemWidth();
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 0.8f));          // 危险红
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));   // 高亮红
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
+    if (ImGui::Button("[ INITIALIZE DEFAULT PARAMETERS ]", ImVec2(-1.0f, 36.0f))) {
+        resetParameters();
+    }
+    ImGui::PopStyleColor(3);
+
+    ImGui::End();
 }

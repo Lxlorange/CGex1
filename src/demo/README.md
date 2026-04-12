@@ -19,4 +19,4 @@
 - 定义自动截图清单与命名规范
 - 给实验报告直接喂图
 
-当前用 README 占位。
+可调参数与属性读数已用 **ImGui** 做在 `Demo2D::drawUi` / `Demo3D::drawUi`（见 `scene/`）。本目录仍可后续加 `DemoPreset` 等脚本化方案，与面板互补。
