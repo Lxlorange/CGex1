@@ -23,6 +23,8 @@ public:
     void run();
     bool runChecklistValidation(const std::string& screenshotDir);
 
+    void onDrop(const char* path);
+
 private:
     GLFWwindow* window_;
     InputManager inputManager_;

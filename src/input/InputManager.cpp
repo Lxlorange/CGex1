@@ -25,6 +25,7 @@ void InputManager::attach(GLFWwindow* window) {
     glfwSetFramebufferSizeCallback(window_, InputManager::framebufferSizeCallback);
     glfwSetMouseButtonCallback(window_, InputManager::mouseButtonCallback);
     glfwSetScrollCallback(window_, InputManager::scrollCallback);
+    glfwSetDropCallback(window_, InputManager::dropCallback);
 }
 
 void InputManager::setKeyHandler(KeyHandler handler) {
@@ -33,6 +34,18 @@ void InputManager::setKeyHandler(KeyHandler handler) {
 
 void InputManager::setResizeHandler(ResizeHandler handler) {
     resizeHandler_ = std::move(handler);
+}
+
+void InputManager::setDropHandler(DropHandler handler) {
+    dropHandler_ = std::move(handler);
+}
+
+void InputManager::dropCallback(GLFWwindow* window, int count, const char** paths) {
+    InputManager* input = static_cast<InputManager*>(glfwGetWindowUserPointer(window));
+    if (input != nullptr && input->dropHandler_ && count > 0) {
+        // 直接取第一个文件的路径传给 App
+        input->dropHandler_(paths[0]);
+    }
 }
 
 void InputManager::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {

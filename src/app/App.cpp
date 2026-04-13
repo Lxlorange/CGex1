@@ -134,6 +134,12 @@ bool App::runChecklistValidation(const std::string& screenshotDir) {
     return true;
 }
 
+void App::onDrop(const char* path) {
+    if (activeScene_ == demo3D_.get()) {
+        demo3D_->loadModel(path);
+    }
+}
+
 void App::setupInput() {
     inputManager_.setKeyHandler([this](int key, int action) {
         onKey(key, action);
@@ -141,6 +147,10 @@ void App::setupInput() {
 
     inputManager_.setResizeHandler([this](int width, int height) {
         onResize(width, height);
+    });
+
+    inputManager_.setDropHandler([this](const char* path) {
+        onDrop(path);
     });
 }
 

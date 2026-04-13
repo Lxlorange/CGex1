@@ -21,6 +21,8 @@ public:
     Vec3 cameraEye() const;
     void resetParameters();
 
+    void loadModel(const std::string& absoluteOrRelativePath);
+
 private:
     Shader shader_;
     unsigned int vao_;
@@ -40,6 +42,11 @@ private:
     float scale_;
     bool perspective_;
     bool altOrder_;
+
+    std::string projectRoot_;
+    bool drawEdge_{true};
+
+    char objPathBuf_[512];
 
     void resetTransform();
     Mat4 buildModel() const;

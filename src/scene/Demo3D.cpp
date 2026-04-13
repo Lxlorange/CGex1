@@ -37,6 +37,7 @@ float clampValue(float v, float minV, float maxV) {
 
 Demo3D::Demo3D(const std::string& projectRoot)
     : shader_(projectRoot + "/shaders/vertex3d.glsl", projectRoot + "/shaders/fragment3d.glsl"),
+      projectRoot_(projectRoot),
       vao_(0),
       vbo_(0),
       ebo_(0),
@@ -53,50 +54,7 @@ Demo3D::Demo3D(const std::string& projectRoot)
       scale_(1.0f),
       perspective_(true),
       altOrder_(false) {
-    const std::string objPath = projectRoot + "/assets/models/cube.obj";
-    SimpleObjMesh objMesh;
-    if (loadSimpleObjFile(objPath, objMesh) && objMesh.valid) {
-        uploadMeshToGpu(objMesh.vertices, objMesh.indices);
-    } else {
-        std::cerr << "[Demo3D] OBJ 加载失败，使用内置立方体: " << objPath << std::endl;
-        // 与原先一致：24 顶点 + 索引（每面独立颜色）
-        static const float vertices[] = {
-            -0.5f, -0.5f, -0.5f, 1.0f, 0.2f, 0.2f,
-            0.5f, -0.5f, -0.5f, 0.2f, 1.0f, 0.2f,
-            0.5f, 0.5f, -0.5f, 0.2f, 0.2f, 1.0f,
-            -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.2f,
-            -0.5f, -0.5f, 0.5f, 1.0f, 0.2f, 1.0f,
-            0.5f, -0.5f, 0.5f, 0.2f, 1.0f, 1.0f,
-            0.5f, 0.5f, 0.5f, 1.0f, 1.0f, 1.0f,
-            -0.5f, 0.5f, 0.5f, 0.8f, 0.8f, 0.3f,
-            -0.5f, 0.5f, 0.5f, 0.9f, 0.3f, 0.4f,
-            -0.5f, 0.5f, -0.5f, 0.2f, 0.9f, 0.4f,
-            -0.5f, -0.5f, -0.5f, 0.2f, 0.4f, 0.9f,
-            -0.5f, -0.5f, 0.5f, 0.9f, 0.8f, 0.2f,
-            0.5f, 0.5f, 0.5f, 0.4f, 0.7f, 0.9f,
-            0.5f, 0.5f, -0.5f, 0.9f, 0.4f, 0.7f,
-            0.5f, -0.5f, -0.5f, 0.7f, 0.9f, 0.4f,
-            0.5f, -0.5f, 0.5f, 0.4f, 0.9f, 0.7f,
-            -0.5f, -0.5f, -0.5f, 0.6f, 0.2f, 0.7f,
-            0.5f, -0.5f, -0.5f, 0.3f, 0.8f, 0.7f,
-            0.5f, -0.5f, 0.5f, 0.8f, 0.3f, 0.7f,
-            -0.5f, -0.5f, 0.5f, 0.7f, 0.7f, 0.2f,
-            -0.5f, 0.5f, -0.5f, 0.1f, 0.9f, 0.9f,
-            0.5f, 0.5f, -0.5f, 0.9f, 0.1f, 0.9f,
-            0.5f, 0.5f, 0.5f, 0.9f, 0.9f, 0.1f,
-            -0.5f, 0.5f, 0.5f, 0.1f, 0.9f, 0.1f,
-        };
-        static const unsigned int indices[] = {
-            0,  1,  2,  2,  3,  0,   //
-            4,  5,  6,  6,  7,  4,   //
-            8,  9,  10, 10, 11, 8,   //
-            12, 13, 14, 14, 15, 12,  //
-            16, 17, 18, 18, 19, 16,  //
-            20, 21, 22, 22, 23, 20,  //
-        };
-        uploadMeshToGpu(std::vector<float>(vertices, vertices + (sizeof(vertices) / sizeof(vertices[0]))),
-                        std::vector<unsigned int>(indices, indices + (sizeof(indices) / sizeof(indices[0]))));
-    }
+    strncpy(objPathBuf_, "models/cube.obj", sizeof(objPathBuf_) - 1);
 }
 
 Demo3D::~Demo3D() {
@@ -116,6 +74,10 @@ void Demo3D::onEnter() {
 }
 
 void Demo3D::render(int width, int height) {
+    if (indexCount_ == 0) {
+        return;
+    }
+
     const float aspect = (height == 0) ? 1.0f : static_cast<float>(width) / static_cast<float>(height);
     const Mat4 model = buildModel();
     const Mat4 view = Mat4::lookAt(cameraEye_, cameraCenter_, cameraUp_);
@@ -134,7 +96,23 @@ void Demo3D::render(int width, int height) {
     shader_.setMat4("u_Proj", proj);
 
     glBindVertexArray(vao_);
+    shader_.setFloat("u_IsWireframe", 0.0f);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(1.0f, 1.0f);
+
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indexCount_), GL_UNSIGNED_INT, nullptr);
+
+    glDisable(GL_POLYGON_OFFSET_FILL);
+
+    if (drawEdge_) {
+        shader_.setFloat("u_IsWireframe", 1.0f);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indexCount_), GL_UNSIGNED_INT, nullptr);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
 }
 
 void Demo3D::onKey(int key, int action) {
@@ -242,25 +220,63 @@ void Demo3D::resetParameters() {
     resetTransform();
 }
 
+void Demo3D::loadModel(const std::string& path) {
+    SimpleObjMesh objMesh;
+    std::string finalPath = path;
+
+    if (!loadSimpleObjFile(finalPath, objMesh)) {
+        finalPath = projectRoot_ + "/" + path;
+        loadSimpleObjFile(finalPath, objMesh);
+    }
+
+    if (objMesh.valid) {
+        uploadMeshToGpu(objMesh.vertices, objMesh.indices);
+        std::cout << "[Demo3D] 成功导入: " << finalPath << std::endl;
+        strncpy(objPathBuf_, path.c_str(), sizeof(objPathBuf_) - 1);
+    } else {
+        std::cerr << "[Demo3D] 导入失败，请检查文件: " << path << std::endl;
+    }
+}
+
 void Demo3D::drawUi() {
     ImGuiIO& io = ImGui::GetIO();
 
-    // 1. 坐标与状态只读信息板 (保持你原来的设计，这个独立窗口很棒)
-    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 340.0f, 28.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 360.0f, 20.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowBgAlpha(0.92f);
     ImGui::Begin(
-        "Coordinates / 坐标读数",
-        nullptr,
-        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+            "Coordinates",
+            nullptr,
+            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+
+    if (ImGui::TreeNodeEx(">> MODEL IMPORTER", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Spacing();
+
+        ImGui::TextDisabled("PATH (Drag & Drop .obj here!)");
+        ImGui::SetNextItemWidth(-1.0f);
+        ImGui::InputText("##objPath", objPathBuf_, sizeof(objPathBuf_));
+
+        if (ImGui::Button("[ LOAD OBJ FILE ]", ImVec2(-1.0f, 36.0f))) {
+            loadModel(std::string(objPathBuf_));
+        }
+
+        ImGui::Spacing();
+        ImGui::Checkbox("Draw Black Edge Overlay", &drawEdge_);
+        ImGui::TreePop();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.92f, 0.95f, 1.0f, 1.0f));
-    ImGui::TextUnformatted("Camera / 摄像机");
+    ImGui::TextUnformatted("Camera");
     ImGui::PopStyleColor();
     ImGui::BulletText("Eye (x, y, z):  %.4f   %.4f   %.4f", cameraEye_.x, cameraEye_.y, cameraEye_.z);
     ImGui::BulletText("Look-at center: %.4f   %.4f   %.4f", cameraCenter_.x, cameraCenter_.y, cameraCenter_.z);
     ImGui::BulletText("Up:             %.4f   %.4f   %.4f", cameraUp_.x, cameraUp_.y, cameraUp_.z);
     ImGui::Separator();
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.92f, 0.75f, 1.0f));
-    ImGui::TextUnformatted("Object / 物体 (模型)");
+    ImGui::TextUnformatted("Object");
     ImGui::PopStyleColor();
     ImGui::BulletText("Position (world): %.4f   %.4f   %.4f", posX_, posY_, posZ_);
     ImGui::BulletText("Rotation (deg):   %.2f   %.2f   %.2f",
@@ -269,13 +285,12 @@ void Demo3D::drawUi() {
                       rotZ_ * 180.0f / 3.14159265f);
     ImGui::BulletText("Uniform scale:      %.4f", scale_);
     ImGui::Separator();
-    ImGui::TextUnformatted("Projection / 投影");
-    ImGui::BulletText("%s", perspective_ ? "Perspective / 透视" : "Orthographic / 正交");
+    ImGui::TextUnformatted("Projection");
+    ImGui::BulletText("%s", perspective_ ? "Perspective" : "Orthographic");
     ImGui::End();
 
-    // 2. 主控面板 (科技仪表盘风格)
-    ImGui::SetNextWindowPos(ImVec2(16.0f, 28.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(380.0f, 680.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(380.0f, 720.0f), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("SYSTEM CONTROL // Demo3D", nullptr)) {
         ImGui::End();
@@ -284,13 +299,41 @@ void Demo3D::drawUi() {
 
     constexpr ImGuiSliderFlags kSlide = ImGuiSliderFlags_AlwaysClamp;
 
-    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.65f);
+    // 核心：封装一个绘制 AE 风格滑动条的 Lambda 函数
+    auto DrawAESlider = [](const char* label, const char* shortcut, float* v, float v_min, float v_max, const char* format = "%.2f", ImGuiSliderFlags flags = 0) {
+        // 第一行：显示参数名和快捷键
+        ImGui::Text("%s %s", label, shortcut ? shortcut : "");
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 60.0f); // 将数值靠右对齐
+        // 显示当前数值
+        ImGui::TextDisabled(format, *v);
+
+        // 第二行：纯粹的滑动条
+        ImGui::PushID(label); // 使用 label 压入 ID 栈，防止滑块冲突
+        ImGui::SetNextItemWidth(-1.0f); // -1.0f 代表让滑块填满整行宽度
+        ImGui::SliderFloat("##slider", v, v_min, v_max, format, flags);
+        ImGui::PopID();
+        ImGui::Spacing();
+    };
+
+    auto DrawAEAngleSlider = [&](const char* label, const char* shortcut, float* rad_v, float deg_min, float deg_max) {
+        float deg = *rad_v * 180.0f / 3.14159265f;
+        ImGui::Text("%s %s", label, shortcut ? shortcut : "");
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 70.0f);
+        ImGui::TextDisabled("%.1f deg", deg);
+        ImGui::PushID(label);
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::SliderFloat("##slider", &deg, deg_min, deg_max, "%.1f deg", kSlide)) {
+            *rad_v = deg * 3.14159265f / 180.0f;
+        }
+        ImGui::PopID();
+        ImGui::Spacing();
+    };
 
     if (ImGui::TreeNodeEx(">> CAMERA OPTICS", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::TextDisabled("POSITION [XYZ]");
-        ImGui::SliderFloat("Eye X", &cameraEye_.x, -3.5f, 3.5f, "%.2f", kSlide);
-        ImGui::SliderFloat("Eye Y", &cameraEye_.y, -2.5f, 2.5f, "%.2f", kSlide);
-        ImGui::SliderFloat("Eye Z", &cameraEye_.z, 1.2f, 8.0f, "%.2f", kSlide);
+        ImGui::Spacing();
+        DrawAESlider("Eye X", "(A/D)", &cameraEye_.x, -3.5f, 3.5f, "%.2f", kSlide);
+        DrawAESlider("Eye Y", "(Q/E)", &cameraEye_.y, -2.5f, 2.5f, "%.2f", kSlide);
+        DrawAESlider("Eye Z", "(W/S)", &cameraEye_.z, 1.2f, 8.0f, "%.2f", kSlide);
         ImGui::Spacing();
         ImGui::TextDisabled("TARGET: (%.2f, %.2f, %.2f)", cameraCenter_.x, cameraCenter_.y, cameraCenter_.z);
         ImGui::TextDisabled("UP VEC: (%.2f, %.2f, %.2f)", cameraUp_.x, cameraUp_.y, cameraUp_.z);
@@ -302,20 +345,18 @@ void Demo3D::drawUi() {
     ImGui::Spacing();
 
     if (ImGui::TreeNodeEx(">> MODEL KINEMATICS", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::TextDisabled("TRANSLATION (World Space)");
-        ImGui::SliderFloat("Pos X", &posX_, -1.2f, 1.2f, "%.3f", kSlide);
-        ImGui::SliderFloat("Pos Y", &posY_, -1.2f, 1.2f, "%.3f", kSlide);
-        ImGui::SliderFloat("Pos Z", &posZ_, -1.2f, 1.2f, "%.3f", kSlide);
         ImGui::Spacing();
+        DrawAESlider("Pos X", "(J/L)", &posX_, -1.2f, 1.2f, "%.3f", kSlide);
+        DrawAESlider("Pos Y", "(I/K)", &posY_, -1.2f, 1.2f, "%.3f", kSlide);
+        DrawAESlider("Pos Z", "(U/O)", &posZ_, -1.2f, 1.2f, "%.3f", kSlide);
 
-        ImGui::TextDisabled("EULER ROTATION");
-        ImGui::SliderAngle("Rot X", &rotX_, -180.0f, 180.0f, "%.1f deg", kSlide);
-        ImGui::SliderAngle("Rot Y", &rotY_, -180.0f, 180.0f, "%.1f deg", kSlide);
-        ImGui::SliderAngle("Rot Z", &rotZ_, -180.0f, 180.0f, "%.1f deg", kSlide);
         ImGui::Spacing();
+        DrawAEAngleSlider("Rot X", "(UP/DOWN)", &rotX_, -180.0f, 180.0f);
+        DrawAEAngleSlider("Rot Y", "(LEFT/RIGHT)", &rotY_, -180.0f, 180.0f);
+        DrawAEAngleSlider("Rot Z", "(Z/X)", &rotZ_, -180.0f, 180.0f);
 
-        ImGui::TextDisabled("SCALE MODIFIER");
-        ImGui::SliderFloat("Uniform", &scale_, 0.2f, 4.0f, "%.3f", kSlide);
+        ImGui::Spacing();
+        DrawAESlider("Uniform Scale", "(-/+)", &scale_, 0.2f, 4.0f, "%.3f", kSlide);
         ImGui::TreePop();
     }
 
@@ -324,43 +365,57 @@ void Demo3D::drawUi() {
     ImGui::Spacing();
 
     if (ImGui::TreeNodeEx(">> RENDER PIPELINE", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::TextUnformatted("PROJECTION MATRIX");
+        ImGui::TextUnformatted("PROJECTION MATRIX (P)");
         int projMode = perspective_ ? 0 : 1;
-        if (ImGui::RadioButton("Perspective", &projMode, 0)) {
-            perspective_ = true;
-        }
+        if (ImGui::RadioButton("Perspective", &projMode, 0)) perspective_ = true;
         ImGui::SameLine();
-        if (ImGui::RadioButton("Orthographic", &projMode, 1)) {
-            perspective_ = false;
-        }
+        if (ImGui::RadioButton("Orthographic", &projMode, 1)) perspective_ = false;
 
         ImGui::Spacing();
 
-        ImGui::TextUnformatted("TRANSFORM ORDER");
+        ImGui::TextUnformatted("TRANSFORM ORDER (T)");
         int orderMode = altOrder_ ? 1 : 0;
-        if (ImGui::RadioButton("T * R * S (Standard)", &orderMode, 0)) {
-            altOrder_ = false;
-        }
-        if (ImGui::RadioButton("R * T * S (Alt)", &orderMode, 1)) {
-            altOrder_ = true;
-        }
+        if (ImGui::RadioButton("T * R * S (Standard)", &orderMode, 0)) altOrder_ = false;
+        if (ImGui::RadioButton("R * T * S (Alt)", &orderMode, 1)) altOrder_ = true;
 
         ImGui::TreePop();
     }
 
-    ImGui::PopItemWidth();
-
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.1f, 0.1f, 0.8f));          // 危险红
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.2f, 0.2f, 1.0f));   // 高亮红
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0.3f, 0.3f, 1.0f));
-    if (ImGui::Button("[ INITIALIZE DEFAULT PARAMETERS ]", ImVec2(-1.0f, 36.0f))) {
+    if (ImGui::Button("Reset All Parameters (R)", ImVec2(-1.0f, 36.0f))) {
         resetParameters();
     }
-    ImGui::PopStyleColor(3);
 
     ImGui::End();
+}
+
+void Demo3D::uploadMeshToGpu(const std::vector<float>& vertices, const std::vector<unsigned int>& indices) {
+    if (vao_ == 0) {
+        glGenVertexArrays(1, &vao_);
+    }
+    if (vbo_ == 0) {
+        glGenBuffers(1, &vbo_);
+    }
+    if (ebo_ == 0) {
+        glGenBuffers(1, &ebo_);
+    }
+
+    glBindVertexArray(vao_);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+    indexCount_ = indices.size();
 }

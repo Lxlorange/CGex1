@@ -32,5 +32,5 @@ target_include_directories(CG_ex1 PRIVATE
 # 链接库
 target_link_libraries(CG_ex1 PRIVATE glfw opengl32 imgui)
 
-# 与 Demo2D/Demo3D 一致：禁止 glfw3.h 拉取系统 GL/gl.h（由 GLAD 提供 OpenGL 头）
+# 与 Demo2D/Demo3D 一致，禁止 glfw3.h 拉取系统 GL/gl.h（由 GLAD 提供 OpenGL 头）
 target_compile_definitions(CG_ex1 PRIVATE GLFW_INCLUDE_NONE)

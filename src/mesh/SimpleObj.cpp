@@ -6,82 +6,81 @@
 
 namespace {
 
-struct Vec3f {
-    float x;
-    float y;
-    float z;
-};
+    struct Vec3f {
+        float x;
+        float y;
+        float z;
+    };
 
-int parseObjVertexIndex(const std::string& token, int positionCount) {
-    // token: "12" or "12/34" or "12/34/56" — 只取第一个整数（位置索引），OBJ 为 1-based
-    std::string num;
-    for (char c : token) {
-        if (c == '/') {
-            break;
+    int parseObjVertexIndex(const std::string &token, int positionCount) {
+        // token: "12" or "12/34" or "12/34/56" — 只取第一个整数（位置索引），OBJ 为 1-based
+        std::string num;
+        for (char c: token) {
+            if (c == '/') {
+                break;
+            }
+            num.push_back(c);
         }
-        num.push_back(c);
+        if (num.empty()) {
+            return 0;
+        }
+        const int v = std::stoi(num);
+        if (v > 0) {
+            return v - 1;
+        }
+        return positionCount + v;
     }
-    if (num.empty()) {
-        return 0;
+
+    void buildColorsFromBBox(const std::vector<Vec3f> &pos, std::vector<float> &interleaved) {
+        interleaved.clear();
+        interleaved.reserve(pos.size() * 6U);
+
+        if (pos.empty()) {
+            return;
+        }
+
+        float minX = pos[0].x;
+        float minY = pos[0].y;
+        float minZ = pos[0].z;
+        float maxX = minX;
+        float maxY = minY;
+        float maxZ = minZ;
+        for (const Vec3f &p: pos) {
+            minX = std::min(minX, p.x);
+            minY = std::min(minY, p.y);
+            minZ = std::min(minZ, p.z);
+            maxX = std::max(maxX, p.x);
+            maxY = std::max(maxY, p.y);
+            maxZ = std::max(maxZ, p.z);
+        }
+
+        const float sx = maxX - minX;
+        const float sy = maxY - minY;
+        const float sz = maxZ - minZ;
+        const float eps = 1e-6f;
+        const float invX = (sx > eps) ? 1.0f / sx : 0.0f;
+        const float invY = (sy > eps) ? 1.0f / sy : 0.0f;
+        const float invZ = (sz > eps) ? 1.0f / sz : 0.0f;
+
+        for (const Vec3f &p: pos) {
+            interleaved.push_back(p.x);
+            interleaved.push_back(p.y);
+            interleaved.push_back(p.z);
+            if (sx <= eps && sy <= eps && sz <= eps) {
+                interleaved.push_back(0.55f);
+                interleaved.push_back(0.55f);
+                interleaved.push_back(0.75f);
+            } else {
+                interleaved.push_back((p.x - minX) * invX);
+                interleaved.push_back((p.y - minY) * invY);
+                interleaved.push_back((p.z - minZ) * invZ);
+            }
+        }
     }
-    const int v = std::stoi(num);
-    if (v > 0) {
-        return v - 1;
-    }
-    // 负索引：相对当前顶点表末尾
-    return positionCount + v;
+
 }
 
-void buildColorsFromBBox(const std::vector<Vec3f>& pos, std::vector<float>& interleaved) {
-    interleaved.clear();
-    interleaved.reserve(pos.size() * 6U);
-
-    if (pos.empty()) {
-        return;
-    }
-
-    float minX = pos[0].x;
-    float minY = pos[0].y;
-    float minZ = pos[0].z;
-    float maxX = minX;
-    float maxY = minY;
-    float maxZ = minZ;
-    for (const Vec3f& p : pos) {
-        minX = std::min(minX, p.x);
-        minY = std::min(minY, p.y);
-        minZ = std::min(minZ, p.z);
-        maxX = std::max(maxX, p.x);
-        maxY = std::max(maxY, p.y);
-        maxZ = std::max(maxZ, p.z);
-    }
-
-    const float sx = maxX - minX;
-    const float sy = maxY - minY;
-    const float sz = maxZ - minZ;
-    const float eps = 1e-6f;
-    const float invX = (sx > eps) ? 1.0f / sx : 0.0f;
-    const float invY = (sy > eps) ? 1.0f / sy : 0.0f;
-    const float invZ = (sz > eps) ? 1.0f / sz : 0.0f;
-
-    for (const Vec3f& p : pos) {
-        interleaved.push_back(p.x);
-        interleaved.push_back(p.y);
-        interleaved.push_back(p.z);
-        if (sx <= eps && sy <= eps && sz <= eps) {
-            interleaved.push_back(0.55f);
-            interleaved.push_back(0.55f);
-            interleaved.push_back(0.75f);
-        } else {
-            interleaved.push_back((p.x - minX) * invX);
-            interleaved.push_back((p.y - minY) * invY);
-            interleaved.push_back((p.z - minZ) * invZ);
-        }
-    }
-}
-
-} // namespace
-
-bool loadSimpleObjFile(const std::string& path, SimpleObjMesh& out) {
+bool loadSimpleObjFile(const std::string &path, SimpleObjMesh &out) {
     out = SimpleObjMesh{};
     std::ifstream in(path);
     if (!in) {
@@ -96,7 +95,6 @@ bool loadSimpleObjFile(const std::string& path, SimpleObjMesh& out) {
         if (line.empty()) {
             continue;
         }
-        // 去掉行首空白
         size_t start = 0;
         while (start < line.size() && (line[start] == ' ' || line[start] == '\t')) {
             ++start;

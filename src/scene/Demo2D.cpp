@@ -190,22 +190,21 @@ Mat4 Demo2D::buildModel() const {
 void Demo2D::resetParameters() {
     resetTransform();
 }
-
 void Demo2D::drawUi() {
     ImGuiIO& io = ImGui::GetIO();
 
-    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 340.0f, 28.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 360.0f, 20.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowBgAlpha(0.92f);
     ImGui::Begin(
-        "Coordinates",
-        nullptr,
-        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
-    ImGui::TextUnformatted("2D scene: no 3D camera / \xe6\x97\xa0\xe4\xb8\x89\xe7\xbb\xb4\xe6\x91\x84\xe5\x83\x8f\xe6\x9c\xba");
-    ImGui::BulletText("View matrix: identity / \xe8\xa7\x86\xe5\x9b\xbe\xe4\xb8\xba\xe5\x8d\x95\xe4\xbd\x8d\xe9\x98\xb5");
-    ImGui::BulletText("Projection: ortho (NDC plane) / \xe6\xad\xa3\xe4\xba\xa4\xe6\x8a\x95\xe5\xbd\xb1");
+            "Coordinates",
+            nullptr,
+            ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
+    ImGui::TextUnformatted("2D scene: no 3D camera");
+    ImGui::BulletText("View matrix: identity");
+    ImGui::BulletText("Projection: ortho (NDC plane)");
     ImGui::Separator();
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.92f, 0.75f, 1.0f));
-    ImGui::TextUnformatted("Object / \xe7\x89\xa9\xe4\xbd\x93");
+    ImGui::TextUnformatted("Object");
     ImGui::PopStyleColor();
     ImGui::BulletText("Translation (tx, ty): %.4f , %.4f", tx_, ty_);
     ImGui::BulletText("Rotation Z (deg):     %.2f", rotRad_ * 180.0f / 3.14159265f);
@@ -217,43 +216,67 @@ void Demo2D::drawUi() {
     ImGui::BulletText("Combine alt order: %s", altOrder_ ? "R*T" : "T*R");
     ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(16.0f, 28.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(340.0f, 560.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(20.0f, 20.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 620.0f), ImGuiCond_FirstUseEver);
 
     if (!ImGui::Begin("Demo2D / Properties", nullptr)) {
         ImGui::End();
         return;
     }
 
+    auto DrawAESlider = [](const char* label, const char* shortcut, float* v, float v_min, float v_max, const char* format = "%.3f") {
+        ImGui::Text("%s %s", label, shortcut ? shortcut : "");
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 60.0f);
+        ImGui::TextDisabled(format, *v);
+
+        ImGui::PushID(label);
+        ImGui::SetNextItemWidth(-1.0f);
+        ImGui::SliderFloat("##slider", v, v_min, v_max, format);
+        ImGui::PopID();
+        ImGui::Spacing();
+    };
+
     if (ImGui::TreeNodeEx("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::SliderFloat("Position X", &tx_, -0.65f, 0.65f, "%.3f");
-        ImGui::SliderFloat("Position Y", &ty_, -0.65f, 0.65f, "%.3f");
+        ImGui::Spacing();
+        DrawAESlider("Position X", "(A/D)", &tx_, -0.65f, 0.65f);
+        DrawAESlider("Position Y", "(W/S)", &ty_, -0.65f, 0.65f);
+
         float rotDeg = rotRad_ * 180.0f / 3.14159265f;
-        if (ImGui::SliderFloat("Rotation Z (deg)", &rotDeg, -180.0f, 180.0f, "%.1f")) {
+        ImGui::Text("Rotation Z %s", "(Q/E)");
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 70.0f);
+        ImGui::TextDisabled("%.1f deg", rotDeg);
+        ImGui::PushID("Rotation Z");
+        ImGui::SetNextItemWidth(-1.0f);
+        if (ImGui::SliderFloat("##slider", &rotDeg, -180.0f, 180.0f, "%.1f deg")) {
             rotRad_ = degToRad(rotDeg);
         }
-        ImGui::SliderFloat("Scale X", &sx_, 0.1f, 5.0f, "%.3f");
-        ImGui::SliderFloat("Scale Y", &sy_, 0.1f, 5.0f, "%.3f");
+        ImGui::PopID();
+        ImGui::Spacing();
+
+        // 源码逻辑中 Z/X 是同时缩放 X 和 Y，所以将快捷键标记在它们旁边
+        DrawAESlider("Scale X", "(Z/X)", &sx_, 0.1f, 5.0f);
+        DrawAESlider("Scale Y", "(Z/X)", &sy_, 0.1f, 5.0f);
         ImGui::TreePop();
     }
 
     if (ImGui::TreeNodeEx("Shear", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::SliderFloat("Shear shx (x' += shx*y)", &shx_, -0.8f, 0.8f, "%.3f");
-        ImGui::SliderFloat("Shear shy (y' += shy*x)", &shy_, -0.8f, 0.8f, "%.3f");
+        ImGui::Spacing();
+        DrawAESlider("Shear shx", "(H/J)", &shx_, -0.8f, 0.8f);
+        DrawAESlider("Shear shy", "(N/M)", &shy_, -0.8f, 0.8f);
         ImGui::TreePop();
     }
 
     if (ImGui::TreeNodeEx("Reflect & combine", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::Checkbox("Reflect across X axis", &reflectX_);
-        ImGui::Checkbox("Reflect across Y axis", &reflectY_);
-        ImGui::Checkbox("Alt order (R*T vs T*R)", &altOrder_);
+        ImGui::Checkbox("Reflect across X axis (Y)", &reflectX_);
+        ImGui::Checkbox("Reflect across Y axis (U)", &reflectY_);
+        ImGui::Checkbox("Alt order (R*T vs T*R) (T)", &altOrder_);
         ImGui::TreePop();
     }
 
     ImGui::Separator();
-    ImGui::TextDisabled("Live numbers: see \"Coordinates / \xe5\x9d\x90\xe6\xa0\x87\xe8\xaf\xbb\xe6\x95\xb0\"");
+    ImGui::Spacing();
 
-    if (ImGui::Button("Reset (same as R key)")) {
+    if (ImGui::Button("Reset All Parameters (R)", ImVec2(-1.0f, 36.0f))) {
         resetParameters();
     }
 

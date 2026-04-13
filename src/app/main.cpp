@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(960, 720, "CG_ex1", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1600, 900, "CG_ex1", nullptr, nullptr);
     if (window == nullptr) {
         std::cerr << "Failed to create GLFW window." << std::endl;
         glfwTerminate();
