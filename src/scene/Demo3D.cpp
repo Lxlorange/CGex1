@@ -299,17 +299,13 @@ void Demo3D::drawUi() {
 
     constexpr ImGuiSliderFlags kSlide = ImGuiSliderFlags_AlwaysClamp;
 
-    // 核心：封装一个绘制 AE 风格滑动条的 Lambda 函数
     auto DrawAESlider = [](const char* label, const char* shortcut, float* v, float v_min, float v_max, const char* format = "%.2f", ImGuiSliderFlags flags = 0) {
-        // 第一行：显示参数名和快捷键
         ImGui::Text("%s %s", label, shortcut ? shortcut : "");
-        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 60.0f); // 将数值靠右对齐
-        // 显示当前数值
+        ImGui::SameLine(ImGui::GetContentRegionAvail().x - 60.0f);
         ImGui::TextDisabled(format, *v);
 
-        // 第二行：纯粹的滑动条
-        ImGui::PushID(label); // 使用 label 压入 ID 栈，防止滑块冲突
-        ImGui::SetNextItemWidth(-1.0f); // -1.0f 代表让滑块填满整行宽度
+        ImGui::PushID(label);
+        ImGui::SetNextItemWidth(-1.0f);
         ImGui::SliderFloat("##slider", v, v_min, v_max, format, flags);
         ImGui::PopID();
         ImGui::Spacing();
@@ -331,8 +327,8 @@ void Demo3D::drawUi() {
 
     if (ImGui::TreeNodeEx(">> CAMERA OPTICS", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Spacing();
-        DrawAESlider("Eye X", "(A/D)", &cameraEye_.x, -3.5f, 3.5f, "%.2f", kSlide);
-        DrawAESlider("Eye Y", "(Q/E)", &cameraEye_.y, -2.5f, 2.5f, "%.2f", kSlide);
+        DrawAESlider("Eye X", "(A/D)", &cameraEye_.x, -7.5f, 7.5f, "%.2f", kSlide);
+        DrawAESlider("Eye Y", "(Q/E)", &cameraEye_.y, -5.5f, 5.5f, "%.2f", kSlide);
         DrawAESlider("Eye Z", "(W/S)", &cameraEye_.z, 1.2f, 8.0f, "%.2f", kSlide);
         ImGui::Spacing();
         ImGui::TextDisabled("TARGET: (%.2f, %.2f, %.2f)", cameraCenter_.x, cameraCenter_.y, cameraCenter_.z);
